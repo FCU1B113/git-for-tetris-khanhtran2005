@@ -55,7 +55,7 @@ typedef struct
 	ShapeId queue[4];
 }State;
 
-Shape shape[7] = {
+Shape shapes[7] = {
 	{
 		.shape = I,
 		.color = CYAN,
@@ -265,34 +265,7 @@ void resetBlock(Block* block) {
 	block->current = false;
 }
 
-int main() {
-	srand(time(NULL));
-
-	State state = {
-		.x = CANVAS_WIDTH/2,
-		.y = 0,
-		.score = 0,
-		.rotate = 0,
-		.falltime = 0,
-	};
-
-	Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH];
-	for (int i = 0; i < CANVAS_HEIGHT; i++) {
-		for (int j = 0; j < CANVAS_WIDTH; j++) {
-			resetBlock(&canvas[i][j]);
-		}
-	}
-
-	Shape shapeData = shape[1];
-
-	for (int i = 0; i < shapeData.size; i++) {
-		for (int j = 0; j < shapeData.size; j++) {
-			if (shapeData.rotates[state.rotate][i][j] == 1) {
-				setBlock(&canvas[state.y + i][state.x + j], shapeData.color, shapeData.shape, true);
-			}
-		}
-	}
-
+void printCanvas(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State *state) {
 	printf("\033[0;0H\n");
 	for (int i = 0; i < CANVAS_HEIGHT; i++) {
 		printf("|");
@@ -302,6 +275,93 @@ int main() {
 		printf("\033[0m");
 		printf("|\n");
 	}
+}
+
+bool move(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], int originalX, int originalY, int originalRotate, int newX, int newY, int newRotate, ShapeId shapeId) {
+	Shape shapeData = shapes[shapeId];
+	int size = shapeData.size;
+
+	// 判斷方塊有沒有不符合條件
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if (shapeData.rotates[newRotate][i][j]) {
+				// 判斷有沒有出去邊界
+				if (newX + j < 0 || newX + j >= CANVAS_WIDTH || newY + i < 0 || newY + i >= CANVAS_HEIGHT) {
+					return false;
+				}
+				// 判斷有沒有碰到別的方塊
+				if(!canvas[newY + i][newX + j].current && canvas[newY + i][newX + j].shape != EMPTY) {
+					return false;
+				}	
+			}
+		}
+	}
+	
+	// 移除方塊舊的位置
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if (shapeData.rotates[originalRotate][i][j])
+				resetBlock(&canvas[originalY + i][originalX + j]);
+		}
+	}
+
+	// 移動方塊至新的位置
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if (shapeData.rotates[newRotate][i][j])
+				setBlock(&canvas[newY + i][newX + j], shapeData.color, shapeId, true);
+		}
+	}
+}
+
+void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state) {
+	if (move(canvas, state->x, state->y, state->rotate, state->x, state->y + 1, state->rotate, state->queue[0]))
+		state->y++;
+
+	return;
+}
+
+int main() {
+	srand(time(NULL));
+
+	State state = {
+		.x = CANVAS_WIDTH / 2,
+		.y = 0,
+		.score = 0,
+		.rotate = 0,
+		.falltime = 0,
+	};
+
+	for (int i = 0; i < 4; i++) {
+		state.queue[i] = rand() % 7;
+	}
+
+	Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH];
+	for (int i = 0; i < CANVAS_HEIGHT; i++) {
+		for (int j = 0; j < CANVAS_WIDTH; j++) {
+			resetBlock(&canvas[i][j]);
+		}
+	}
+
+	Shape shapeData = shapes[state.queue[0]];
+
+	for (int i = 0; i < shapeData.size; i++) {
+		for (int j = 0; j < shapeData.size; j++) {
+			if (shapeData.rotates[state.rotate][i][j] == 1) {
+				setBlock(&canvas[state.y + i][state.x + j], shapeData.color, state.queue[0], true);
+			}
+		}
+	}
+
+	while (1) {
+		printCanvas(canvas, &state);
+		logic(canvas, &state);
+		Sleep(100);
+	}
+
+	return 0;
+}
+
 
 	return 0;
 }
